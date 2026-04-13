@@ -20,10 +20,13 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'unsafe-secret-key')
 
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.environ.get(
-    'DJANGO_ALLOWED_HOSTS',
-    'localhost 127.0.0.1 13.60.91.12'
-).split()
+ALLOWED_HOSTS = [
+    "16.16.10.173",
+    "localhost",
+    "127.0.0.1",
+    "ec2-16-16-10-173.eu-north-1.compute.amazonaws.com",
+    "*",
+]
 
 # ──────────────────────────────────────────────
 # APPS
