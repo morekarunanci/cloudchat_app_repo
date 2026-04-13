@@ -1,0 +1,175 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* ========================
+   THEME: White + Emerald Green
+======================== */
+:root {
+    --bg-from:          #f0fdf4;
+    --bg-to:            #dcfce7;
+    --card-bg:          #ffffff;
+    --card-border:      #d1fae5;
+    --card-shadow:      rgba(16, 185, 129, 0.15);
+    --input-bg:         #f9fafb;
+    --input-border:     #d1d5db;
+    --input-focus:      #10b981;
+    --input-focus-glow: rgba(16,185,129,0.2);
+    --text-primary:     #111827;
+    --text-muted:       #6b7280;
+    --accent:           #10b981;
+    --accent-hover:     #059669;
+    --btn-shadow:       rgba(16,185,129,0.35);
+    --link-color:       #059669;
+    --error-color:      #ef4444;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, var(--bg-from), var(--bg-to));
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Card */
+.container {
+    width: 440px;
+    padding: 42px 40px;
+    border-radius: 20px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    box-shadow: 0 20px 60px var(--card-shadow);
+    color: var(--text-primary);
+}
+
+/* Brand mark at top */
+.container::before {
+    content: '☁️';
+    display: block;
+    text-align: center;
+    font-size: 36px;
+    margin-bottom: 6px;
+}
+
+h2 {
+    text-align: center;
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+}
+
+.subtitle {
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 26px;
+}
+
+/* Row layout */
+.row { display: flex; gap: 12px; }
+.row input { flex: 1; }
+
+/* Inputs */
+input, select {
+    width: 100%;
+    padding: 12px 15px;
+    margin: 7px 0;
+    border-radius: 10px;
+    border: 1.5px solid var(--input-border);
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    transition: border 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+}
+input::placeholder { color: var(--text-muted); }
+input:focus, select:focus {
+    border-color: var(--input-focus);
+    box-shadow: 0 0 0 3px var(--input-focus-glow);
+    background: #fff;
+}
+
+/* Kill autofill tint */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #f9fafb inset !important;
+    -webkit-text-fill-color: #111827 !important;
+    transition: background-color 9999s ease-in-out 0s;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 0.5; cursor: pointer;
+}
+
+/* Button */
+button[type="submit"], button {
+    width: 100%;
+    padding: 13px;
+    margin-top: 18px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+    color: #fff;
+    transition: 0.2s;
+    box-shadow: 0 4px 16px var(--btn-shadow);
+}
+button:hover { transform: translateY(-1px); box-shadow: 0 6px 22px var(--btn-shadow); }
+
+/* Auth links */
+.auth-links {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 18px;
+}
+.auth-links.center { justify-content: center; }
+.auth-links a {
+    font-size: 13px;
+    color: var(--link-color);
+    text-decoration: none;
+    font-weight: 500;
+    transition: 0.2s;
+}
+.auth-links a:hover { text-decoration: underline; }
+
+/* Error */
+.error-msg {
+    color: var(--error-color);
+    font-size: 13px;
+    text-align: center;
+    margin-bottom: 8px;
+    background: #fef2f2;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid #fecaca;
+}
+
+.auth-link {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.auth-link a {
+    text-decoration: none;
+    color: #198754; /* Bootstrap green */
+    font-weight: 500;
+    font-size: 14px;
+    transition: 0.3s;
+}
+
+.auth-link a:hover {
+    color: #145c32;
+    text-decoration: underline;
+}
+

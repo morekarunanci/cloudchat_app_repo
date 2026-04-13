@@ -1,0 +1,108 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Profile</title>
+    <link rel="stylesheet" href="{% static 'css/profile.css' %}">
+</head>
+
+<body>
+<div class="back-btn-container">
+    <a href="{% url 'dashboard' %}" class="back-btn">← Back to Dashboard</a>
+</div>
+
+<div class="profile-container">
+
+    <h2>My Profile</h2>
+
+    <!-- PROFILE IMAGE -->
+    <div class="image-section">
+        <img id="profilePreview"
+             src="{{ profile.profile_image.url }}"
+             class="profile-img"
+             onerror="this.src='https://via.placeholder.com/100'">
+
+        <!-- FORM -->
+        <form method="POST" enctype="multipart/form-data" id="uploadForm">
+            {% csrf_token %}
+
+            <input type="file" id="fileInput" name="profile_image" hidden>
+
+            <div class="btn-group">
+
+                <label for="fileInput" class="custom-btn">
+                    Update Profile Photo
+                </label>
+
+                <!-- ✅ FIXED DELETE BUTTON -->
+                <button type="submit"
+                        name="delete_image"
+                        value="1"
+                        onclick="return confirmDelete()">
+                    Delete
+                </button>
+
+            </div>
+        </form>
+    </div>
+
+    <!-- USER DETAILS -->
+    <div class="profile-info">
+
+        <div class="info-box">
+            <label>Username</label>
+            <p>{{ request.user.username }}</p>
+        </div>
+
+        <div class="info-box">
+            <label>First Name</label>
+            <p>{{ request.user.first_name }}</p>
+        </div>
+
+        <div class="info-box">
+            <label>Last Name</label>
+            <p>{{ request.user.last_name }}</p>
+        </div>
+
+        <div class="info-box">
+            <label>Email</label>
+            <p>{{ request.user.email }}</p>
+        </div>
+
+        <div class="info-box">
+            <label>Date of Birth</label>
+            <p>{{ profile.dob }}</p>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+const fileInput = document.getElementById("fileInput");
+const preview = document.getElementById("profilePreview");
+const form = document.getElementById("uploadForm");
+
+fileInput.addEventListener("change", function () {
+
+    if (this.files && this.files[0]) {
+
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+            preview.src = e.target.result;
+        };
+
+        reader.readAsDataURL(this.files[0]);
+
+        form.submit();
+    }
+});
+
+function confirmDelete() {
+    return confirm("Are you sure you want to delete your profile photo?");
+}
+</script>
+
+</body>
+</html>

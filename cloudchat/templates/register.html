@@ -1,0 +1,54 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Register — CloudChat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static 'css/register.css' %}">
+</head>
+<body>
+
+<div class="container">
+    <h2>Create Account</h2>
+
+    {% if error %}
+        <p class="error-msg">{{ error }}</p>
+    {% endif %}
+
+    <!--
+        autocomplete="off" on the form tells the browser not to autofill.
+        Individual sensitive fields also use autocomplete="new-password"
+        which is the most reliable cross-browser way to suppress autofill.
+    -->
+    <form method="POST" autocomplete="off">
+        {% csrf_token %}
+
+        <div class="row">
+            <input type="text"     name="first_name" placeholder="First Name"
+                   autocomplete="new-password" required>
+            <input type="text"     name="last_name"  placeholder="Last Name"
+                   autocomplete="new-password" required>
+        </div>
+
+        <input type="email"    name="email"     placeholder="Email"
+               autocomplete="new-password" required>
+
+        <input type="text"     name="username"  placeholder="Username"
+               autocomplete="new-password" required>
+
+        <input type="date"     name="dob"
+               autocomplete="new-password" required>
+
+        <input type="password" name="password"  placeholder="Password"
+               autocomplete="new-password" required>
+
+        <button type="submit">Create Account →</button>
+    </form>
+
+    <div class="auth-links center">
+        <a href="{% url 'login' %}">Already have an account? Login</a>
+    </div>
+</div>
+
+</body>
+</html>

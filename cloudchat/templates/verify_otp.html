@@ -1,0 +1,35 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Verify OTP</title>
+    <link rel="stylesheet" href="{% static 'css/register.css' %}">
+</head>
+
+<body>
+
+<div class="container">
+
+    <h2>Verify OTP</h2>
+    <p class="subtitle">Enter the OTP sent to your email</p>
+
+    <form method="POST">
+        {% csrf_token %}
+
+        <input type="text" name="otp" placeholder="Enter OTP" required>
+
+        <button type="submit">Verify</button>
+    </form>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
+    <div class="links">
+        <a href="{% url 'login' %}">← Back to Login</a>
+    </div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,400 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>CloudChat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+</head>
+<body>
+
+<!-- NAVBAR -->
+<div class="navbar">
+    <div class="nav-left">
+        <span class="app-title">☁️ CloudChat</span>
+    </div>
+    <div class="nav-right">
+        <div class="dropdown">
+            <div class="settings-icon">⚙️</div>
+            <div class="dropdown-content">
+                <a href="/profile/">Profile</a>
+                <a href="/export-chats/">Export Chats</a>
+                <a href="/logout/">Logout</a>
+            </div>
+        </div>
+        {% if request.user.profile.profile_image %}
+            <img src="{{ request.user.profile.profile_image.url }}"
+                 class="nav-profile-img"
+                 onerror="this.src='https://ui-avatars.com/api/?name={{ request.user.username }}&background=10b981&color=fff&size=35'">
+        {% else %}
+            <img src="https://ui-avatars.com/api/?name={{ request.user.username }}&background=10b981&color=fff&size=35"
+                 class="nav-profile-img">
+        {% endif %}
+        <span class="welcome-text">{{ request.user.username }}</span>
+    </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <h3>Chats</h3>
+        <input type="text" id="searchUser" placeholder="Search by name or username..."
+               autocomplete="new-password">
+        <div id="searchResults" class="search-results" style="display:none;"></div>
+        <div id="chatList">
+            {% for user in recent_chat_users %}
+            <div class="user" data-uid="{{ user.id }}"
+                 onclick="openChat({{ user.id }}, '{{ user.username }}', '{{ user.get_full_name|default:user.username }}')">
+                <div class="user-avatar">{{ user.username|first|upper }}</div>
+                <div class="user-info">
+                    <span class="user-name">{{ user.get_full_name|default:user.username }}</span>
+                    <span class="user-sub">@{{ user.username }}</span>
+                </div>
+                <span class="unread-badge" id="badge-{{ user.id }}" style="display:none;"></span>
+            </div>
+            {% empty %}
+            <p class="no-chat" id="noChatHint">Search for a user to start chatting</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- CHAT AREA -->
+    <div class="chat-area">
+
+        <!-- Chat header -->
+        <div class="chat-header" id="chatHeader">
+            <span id="chatHeaderName">Select a user to start chatting</span>
+        </div>
+
+        <div class="chat-placeholder" id="chatPlaceholder">
+            <div>
+                <div style="font-size:52px;">💬</div>
+                <p>Select a user to start chatting</p>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages" style="display:none;"></div>
+
+        <div class="chat-input-bar" id="chatInputArea" style="display:none;">
+            <input type="text" id="messageInput" placeholder="Type a message..."
+                   onkeydown="handleKey(event)" autocomplete="new-password">
+            <button onclick="sendMessage()" id="sendBtn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- CONTEXT MENU -->
+<div id="contextMenu" class="context-menu" style="display:none;">
+    <div class="ctx-item" onclick="startEdit()">✏️ Edit</div>
+    <div class="ctx-item ctx-delete" onclick="confirmDelete()">🗑️ Delete</div>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="editModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <h4>Edit Message</h4>
+        <input type="text" id="editInput" autocomplete="new-password">
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeEditModal()">Cancel</button>
+            <button class="btn-save"   onclick="saveEdit()">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- EXPORT TOAST -->
+<div id="exportToast" class="toast" style="display:none;"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────
+let currentUserId   = null;
+let currentUsername = null;
+let pollInterval    = null;
+let activeMessageId = null;
+
+const allUsers = [
+    {% for user in users %}
+    { id: {{ user.id }}, username: "{{ user.username }}", full_name: "{{ user.get_full_name|default:user.username }}" },
+    {% endfor %}
+];
+
+// ── Search ─────────────────────────────────────────────────────────────
+const searchInput   = document.getElementById("searchUser");
+const searchResults = document.getElementById("searchResults");
+
+searchInput.addEventListener("input", function () {
+    const q = this.value.trim().toLowerCase();
+    if (!q) { searchResults.style.display = "none"; return; }
+
+    const filtered = allUsers.filter(u =>
+        u.username.toLowerCase().includes(q) || u.full_name.toLowerCase().includes(q)
+    );
+
+    searchResults.innerHTML = filtered.length === 0
+        ? "<div class='search-item no-result'>No users found</div>"
+        : filtered.map(u => `
+            <div class="search-item" onclick="pickUser(${u.id},'${u.username}','${u.full_name}')">
+                <strong>${u.full_name}</strong>
+                <span class="search-sub">@${u.username}</span>
+            </div>`).join('');
+
+    searchResults.style.display = "block";
+});
+
+function pickUser(id, username, fullName) {
+    searchInput.value = "";
+    searchResults.style.display = "none";
+    openChat(id, username, fullName);
+}
+
+document.addEventListener("click", function (e) {
+    if (!searchInput.contains(e.target) && !searchResults.contains(e.target))
+        searchResults.style.display = "none";
+    if (!document.getElementById("contextMenu").contains(e.target))
+        hideContextMenu();
+});
+
+// ── Open Chat ──────────────────────────────────────────────────────────
+function openChat(userId, username, fullName) {
+    currentUserId   = userId;
+    currentUsername = username;
+
+    document.getElementById("chatHeaderName").innerText = fullName || username;
+    document.getElementById("chatPlaceholder").style.display  = "none";
+    document.getElementById("chatMessages").style.display     = "flex";
+    document.getElementById("chatInputArea").style.display    = "flex";
+    document.getElementById("messageInput").focus();
+
+    document.querySelectorAll(".user").forEach(el => el.classList.remove("active"));
+    const existing = document.querySelector(`[data-uid="${userId}"]`);
+    if (existing) existing.classList.add("active");
+
+    if (pollInterval) clearInterval(pollInterval);
+    loadMessages();
+    pollInterval = setInterval(loadMessages, 2000);
+
+    ensureInSidebar(userId, username, fullName);
+}
+
+function ensureInSidebar(userId, username, fullName) {
+    if (document.querySelector(`[data-uid="${userId}"]`)) return;
+    const hint = document.getElementById("noChatHint");
+    if (hint) hint.remove();
+
+    const div = document.createElement("div");
+    div.className  = "user active";
+    div.dataset.uid = userId;
+    div.onclick    = () => openChat(userId, username, fullName);
+    div.innerHTML  = `
+        <div class="user-avatar">${(username[0]||'?').toUpperCase()}</div>
+        <div class="user-info">
+            <span class="user-name">${fullName || username}</span>
+            <span class="user-sub">@${username}</span>
+        </div>
+        <span class="unread-badge" id="badge-${userId}" style="display:none;"></span>`;
+    document.getElementById("chatList").prepend(div);
+}
+
+// ── Load Messages ──────────────────────────────────────────────────────
+function loadMessages() {
+    if (!currentUserId) return;
+    fetch(`/get_messages/${currentUserId}/`)
+        .then(r => r.ok ? r.json() : Promise.reject(r.status))
+        .then(data => {
+            const box      = document.getElementById("chatMessages");
+            const atBottom = box.scrollHeight - box.scrollTop <= box.clientHeight + 80;
+            box.innerHTML  = "";
+            data.forEach(msg => renderMessage(box, msg));
+            if (atBottom) box.scrollTop = box.scrollHeight;
+        })
+        .catch(err => console.error("loadMessages error:", err));
+}
+
+function renderMessage(box, msg) {
+    const wrapper = document.createElement("div");
+    wrapper.className  = `msg-wrapper ${msg.is_mine ? "sent-wrapper" : "received-wrapper"}`;
+    wrapper.dataset.id = msg.id;
+
+    const bubble = document.createElement("div");
+    bubble.className   = msg.is_mine ? "bubble sent" : "bubble received";
+
+    const txt = document.createElement("span");
+    txt.className   = "msg-text";
+    txt.textContent = msg.text;
+
+    const meta = document.createElement("span");
+    meta.className   = "msg-meta";
+    meta.textContent = msg.time + (msg.is_edited ? " · edited" : "");
+
+    bubble.appendChild(txt);
+    bubble.appendChild(meta);
+
+    if (msg.is_mine) {
+        const menuBtn       = document.createElement("button");
+        menuBtn.className   = "msg-menu-btn";
+        menuBtn.innerHTML   = "⋮";
+        menuBtn.title       = "Options";
+        menuBtn.onclick     = (e) => { e.stopPropagation(); showContextMenu(e, msg.id, msg.text); };
+        bubble.appendChild(menuBtn);
+    }
+
+    wrapper.appendChild(bubble);
+    box.appendChild(wrapper);
+}
+
+// ── Send Message ───────────────────────────────────────────────────────
+function sendMessage() {
+    const input = document.getElementById("messageInput");
+    const text  = input.value.trim();
+    if (!text) return;
+    if (!currentUserId) { alert("Select a user first."); return; }
+    input.value = "";
+
+    fetch('/send/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCookie() },
+        body: `receiver_id=${currentUserId}&text=${encodeURIComponent(text)}`
+    })
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(data => { if (data.status === "sent") loadMessages(); })
+    .catch(err => { console.error("send error:", err); input.value = text; alert("Failed to send."); });
+}
+
+function handleKey(e) { if (e.key === "Enter") sendMessage(); }
+
+// ── Context Menu ───────────────────────────────────────────────────────
+function showContextMenu(e, msgId, msgText) {
+    activeMessageId = msgId;
+    document.getElementById("editInput").value = msgText;
+    const menu = document.getElementById("contextMenu");
+    menu.style.display = "block";
+    let x = e.clientX, y = e.clientY;
+    if (x + 150 > window.innerWidth)  x = window.innerWidth  - 160;
+    if (y + 90  > window.innerHeight) y = window.innerHeight - 100;
+    menu.style.left = x + "px";
+    menu.style.top  = y + "px";
+}
+function hideContextMenu() {
+    document.getElementById("contextMenu").style.display = "none";
+    activeMessageId = null;
+}
+
+// ── Edit ───────────────────────────────────────────────────────────────
+function startEdit() {
+    hideContextMenu();
+    document.getElementById("editModal").style.display = "flex";
+    document.getElementById("editInput").focus();
+}
+function closeEditModal() { document.getElementById("editModal").style.display = "none"; }
+
+function saveEdit() {
+    const newText = document.getElementById("editInput").value.trim();
+    if (!newText || !activeMessageId) return;
+    fetch(`/edit_message/${activeMessageId}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCookie() },
+        body: `text=${encodeURIComponent(newText)}`
+    })
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(data => { if (data.status === "updated") { closeEditModal(); loadMessages(); } })
+    .catch(err => { console.error("edit error:", err); alert("Could not edit."); });
+}
+
+document.getElementById("editInput").addEventListener("keydown", function(e) {
+    if (e.key === "Enter") saveEdit();
+    if (e.key === "Escape") closeEditModal();
+});
+
+// ── Delete ─────────────────────────────────────────────────────────────
+function confirmDelete() {
+    hideContextMenu();
+    if (!activeMessageId) return;
+    if (!confirm("Delete this message?")) return;
+    fetch(`/delete_message/${activeMessageId}/`, {
+        method: 'POST', headers: { 'X-CSRFToken': getCookie() }
+    })
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(data => { if (data.status === "deleted") loadMessages(); })
+    .catch(err => { console.error("delete error:", err); alert("Could not delete."); });
+}
+
+// ── AWS S3 Export ──────────────────────────────────────────────────────
+// Calls /export_chat/<id>/ which:
+//   1. Builds an Excel file of the conversation (openpyxl)
+//   2. Uploads it to the S3 bucket (boto3)
+//   3. Returns a pre-signed URL valid for 5 minutes
+function exportChat() {
+    if (!currentUserId) return;
+    const btn = document.getElementById("exportBtn");
+    btn.textContent = "⏳ Exporting...";
+    btn.disabled    = true;
+
+    fetch(`/export_chat/${currentUserId}/`)
+        .then(r => r.json())
+        .then(data => {
+            btn.textContent = "⬇ Export";
+            btn.disabled    = false;
+            if (data.download_url) {
+                showToast("✅ Export ready — downloading...");
+                window.open(data.download_url, '_blank');
+            } else {
+                showToast("❌ Export failed: " + (data.error || "unknown error"), true);
+            }
+        })
+        .catch(err => {
+            btn.textContent = "⬇ Export";
+            btn.disabled    = false;
+            showToast("❌ Export request failed", true);
+            console.error("export error:", err);
+        });
+}
+
+function showToast(msg, isError = false) {
+    const t = document.getElementById("exportToast");
+    t.textContent          = msg;
+    t.style.display        = "block";
+    t.style.background     = isError ? "#ef4444" : "#10b981";
+    setTimeout(() => { t.style.display = "none"; }, 4000);
+}
+
+// ── Unread Badges ──────────────────────────────────────────────────────
+function refreshUnread() {
+    fetch('/unread_counts/')
+        .then(r => r.json())
+        .then(data => {
+            document.querySelectorAll(".unread-badge").forEach(b => {
+                b.style.display = "none"; b.textContent = "";
+            });
+            data.forEach(item => {
+                const badge = document.getElementById(`badge-${item['sender__id']}`);
+                if (badge && item.count > 0) {
+                    badge.textContent   = item.count;
+                    badge.style.display = "inline-flex";
+                }
+            });
+        }).catch(() => {});
+}
+setInterval(refreshUnread, 3000);
+
+// ── CSRF ───────────────────────────────────────────────────────────────
+function getCookie() {
+    const c = document.cookie.split('; ').find(r => r.startsWith('csrftoken'));
+    return c ? c.split('=')[1] : '';
+}
+
+// ── Nav Dropdown ───────────────────────────────────────────────────────
+const ddContent = document.querySelector(".dropdown-content");
+document.querySelector(".settings-icon").addEventListener("click", function(e) {
+    e.stopPropagation();
+    ddContent.style.display = ddContent.style.display === "block" ? "none" : "block";
+});
+document.addEventListener("click", () => ddContent.style.display = "none");
+</script>
+
+</body>
+</html>
