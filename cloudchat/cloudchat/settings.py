@@ -1,36 +1,23 @@
-"""
-Django settings for cloudchat project.
-AWS Services integrated:
-  1. EC2    — Hosting Django app
-  2. RDS    — PostgreSQL database
-  3. S3     — Store chat export files
-  4. IAM    — Secure access (no hardcoded keys)
-  5. CloudWatch — Logging
-"""
-
 from pathlib import Path
 import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ──────────────────────────────────────────────
+# ─────────────────────────────
 # CORE
-# ──────────────────────────────────────────────
+# ─────────────────────────────
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'unsafe-secret-key')
 
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = [
-    "16.16.10.173",
-    "localhost",
-    "127.0.0.1",
-    "ec2-16-16-10-173.eu-north-1.compute.amazonaws.com",
-    "*",
-]
+ALLOWED_HOSTS = os.environ.get(
+    'DJANGO_ALLOWED_HOSTS',
+    '16.16.10.173 localhost 127.0.0.1 ec2-16-16-10-173.eu-north-1.compute.amazonaws.com'
+).split()
 
-# ──────────────────────────────────────────────
+# ─────────────────────────────
 # APPS
-# ──────────────────────────────────────────────
+# ─────────────────────────────
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -46,9 +33,9 @@ INSTALLED_APPS = [
     'channels',
 ]
 
-# ──────────────────────────────────────────────
+# ─────────────────────────────
 # MIDDLEWARE
-# ──────────────────────────────────────────────
+# ─────────────────────────────
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -61,9 +48,9 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'cloudchat.urls'
 
-# ──────────────────────────────────────────────
+# ─────────────────────────────
 # TEMPLATES
-# ──────────────────────────────────────────────
+# ─────────────────────────────
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -79,15 +66,15 @@ TEMPLATES = [
     },
 ]
 
-# ──────────────────────────────────────────────
+# ─────────────────────────────
 # WSGI / ASGI
-# ──────────────────────────────────────────────
+# ─────────────────────────────
 WSGI_APPLICATION = 'cloudchat.wsgi.application'
 ASGI_APPLICATION = 'cloudchat.asgi.application'
 
-# ──────────────────────────────────────────────
-# DATABASE (RDS + SQLite fallback)
-# ──────────────────────────────────────────────
+# ─────────────────────────────
+# DATABASE
+# ─────────────────────────────
 _USE_RDS = bool(os.environ.get('RDS_HOST'))
 
 DATABASES = {
@@ -101,9 +88,9 @@ DATABASES = {
     }
 }
 
-# ──────────────────────────────────────────────
+# ─────────────────────────────
 # PASSWORD VALIDATION
-# ──────────────────────────────────────────────
+# ─────────────────────────────
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -111,17 +98,17 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-# ──────────────────────────────────────────────
+# ─────────────────────────────
 # I18N
-# ──────────────────────────────────────────────
+# ─────────────────────────────
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# ──────────────────────────────────────────────
+# ─────────────────────────────
 # STATIC & MEDIA
-# ──────────────────────────────────────────────
+# ─────────────────────────────
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
@@ -129,9 +116,9 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# ──────────────────────────────────────────────
-# AWS S3 CONFIG (SAFE)
-# ──────────────────────────────────────────────
+# ─────────────────────────────
+# AWS S3
+# ─────────────────────────────
 AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
 
@@ -143,9 +130,9 @@ AWS_DEFAULT_ACL = None
 AWS_S3_FILE_OVERWRITE = False
 AWS_QUERYSTRING_AUTH = False
 
-# ──────────────────────────────────────────────
-# EMAIL (SMTP)
-# ──────────────────────────────────────────────
+# ─────────────────────────────
+# EMAIL
+# ─────────────────────────────
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
@@ -153,53 +140,10 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 
-# ──────────────────────────────────────────────
-# CLOUDWATCH LOGGING
-# ──────────────────────────────────────────────
-_CW_ENABLED = bool(os.environ.get('CLOUDWATCH_ENABLED'))
-
-_handlers = ['console']
-_handlers_config = {
-    'console': {
-        'class': 'logging.StreamHandler',
-        'formatter': 'verbose',
-    }
-}
-
-if _CW_ENABLED:
-    _handlers.append('cloudwatch')
-    _handlers_config['cloudwatch'] = {
-        'class': 'watchtower.CloudWatchLogHandler',
-        'log_group': 'cloudchat-logs',
-        'stream_name': 'django-app',
-        'formatter': 'verbose',
-    }
-
+# ─────────────────────────────
+# LOGGING
+# ─────────────────────────────
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-
-    'formatters': {
-        'verbose': {
-            'format': '[%(asctime)s] %(levelname)s %(name)s: %(message)s',
-            'datefmt': '%Y-%m-%d %H:%M:%S',
-        },
-    },
-
-    'handlers': _handlers_config,
-
-    'loggers': {
-        'django': {
-            'handlers': _handlers,
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'cloudchat_app': {
-            'handlers': _handlers,
-            'level': 'INFO',
-            'propagate': False,
-        },
-    },
 }
-
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
