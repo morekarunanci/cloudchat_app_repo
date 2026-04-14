@@ -42,7 +42,6 @@ INSTALLED_APPS = [
     'accounts',
     'chat',
     'profiles',
-
     'rest_framework',
     'channels',
 ]
