@@ -14,16 +14,15 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
-from django.shortcuts import redirect 
-from django.urls import path, include
-from accounts.views import (
-    register_page, login_page, dashboard,
-    logout_view, profile_page,
-    forgot_password, reset_password, verify_otp
-)
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib import admin
+from django.shortcuts import redirect
+from django.urls import include, path
+
+from accounts.views import (dashboard, forgot_password, login_page,
+                            logout_view, profile_page, register_page,
+                            reset_password, verify_otp)
 
 urlpatterns = [
     path('', lambda request: redirect('register')),
@@ -38,7 +37,7 @@ urlpatterns = [
     path('forgot-password/', forgot_password, name='forgot_password'),
     path('verify-otp/', verify_otp, name='verify_otp'),
     path('reset-password/', reset_password, name='reset_password'),
-    
+
 
     # ✅ INCLUDE CHAT ROUTES FROM ACCOUNTS
     path('', include('accounts.urls')),

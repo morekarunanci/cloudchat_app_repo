@@ -6,29 +6,24 @@ AWS services used in this file:
   - CloudWatch : logger.info/warning calls stream to CloudWatch when deployed on EC2
 """
 
-import random
 import io
 import logging
+import random
 
+from django.conf import settings as django_settings
 from django.contrib.auth import authenticate, login, logout
-from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
-from django.http import JsonResponse
 from django.db.models import Count, Q
-from django.conf import settings as django_settings
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import redirect, render
 from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from .models import Profile, Message
+from .models import Message, Profile
 from .serializers import RegisterSerializer
-
-import boto3
-from django.conf import settings
-from datetime import date
 
 # ── CloudWatch / CloudWatch-compatible logger ──────────────────────────────
 # In production (EC2 + CLOUDWATCH_ENABLED=1) these log entries appear in the
@@ -46,21 +41,22 @@ class RegisterView(APIView):
         if serializer.is_valid():
             serializer.save()
             logger.info(f"[REGISTER-API] new user via REST: {request.data.get('username')}")
-            return Response({"message": "User Registered Successfully"}, status=status.HTTP_201_CREATED)
+            return Response({"message": "User Regi Done"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 # ═══════════════════════════════════════════════════════════
 # REGISTER PAGE
 # ═══════════════════════════════════════════════════════════
+
+
 def register_page(request):
     if request.method == "POST":
         first_name = request.POST.get('first_name')
-        last_name  = request.POST.get('last_name')
-        username   = request.POST.get('username')
-        email      = request.POST.get('email')
-        password   = request.POST.get('password')
-        dob        = request.POST.get('dob')
+        last_name = request.POST.get('last_name')
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        dob = request.POST.get('dob')
 
         if not all([first_name, last_name, username, email, password, dob]):
             return render(request, 'register.html', {'error': 'All fields are required'})
@@ -69,7 +65,7 @@ def register_page(request):
         if User.objects.filter(email=email).exists():
             return render(request, 'register.html', {'error': 'Email already exists'})
         if len(password) < 6:
-            return render(request, 'register.html', {'error': 'Password must be at least 6 characters'})
+            return render(request, 'register.html', {'error': 'Pass must be at least 6 char'})
 
         user = User.objects.create_user(
             username=username, email=email, password=password,
@@ -169,7 +165,7 @@ def forgot_password(request):
         if not User.objects.filter(email=email).exists():
             return render(request, 'forgot_password.html', {'error': 'Email not found'})
 
-        otp = str(random.randint(100000, 999999))
+        otp = ''.join(str(secrets.randbelow(10)) for _ in range(6))
         request.session['reset_email'] = email
         request.session['otp'] = otp
 
@@ -188,7 +184,7 @@ def forgot_password(request):
 
 def verify_otp(request):
     if request.method == "POST":
-        user_otp   = request.POST.get('otp')
+        user_otp = request.POST.get('otp')
         session_otp = request.session.get('otp')
         if user_otp == session_otp:
             return redirect('/reset-password/')
@@ -199,12 +195,12 @@ def verify_otp(request):
 
 def reset_password(request):
     if request.method == "POST":
-        password         = request.POST.get('password')
+        password = request.POST.get('password')
         confirm_password = request.POST.get('confirm_password')
         if password != confirm_password:
             return render(request, 'reset_password.html', {'error': 'Passwords do not match'})
         email = request.session.get('reset_email')
-        user  = User.objects.get(email=email)
+        user = User.objects.get(email=email)
         user.set_password(password)
         user.save()
         logger.info(f"[RESET-PW] password reset successfully for: {email}")
@@ -219,7 +215,7 @@ def reset_password(request):
 def send_message(request):
     if request.method == "POST":
         receiver_id = request.POST.get("receiver_id")
-        text        = request.POST.get("text", "").strip()
+        text = request.POST.get("text", "").strip()
 
         if not receiver_id or not text:
             return JsonResponse({"error": "receiver_id and text are required"}, status=400)
@@ -238,10 +234,10 @@ def send_message(request):
 
         return JsonResponse({
             "status": "sent",
-            "id":     msg.id,
+            "id": msg.id,
             "sender": msg.sender.username,
-            "text":   msg.text,
-            "time":   msg.timestamp.strftime("%H:%M"),
+            "text": msg.text,
+            "time": msg.timestamp.strftime("%H:%M"),
         })
 
     return JsonResponse({"error": "Invalid request"}, status=400)
@@ -258,17 +254,17 @@ def get_messages(request, user_id):
         return JsonResponse({"error": "User not found"}, status=404)
 
     msg_qs = Message.objects.filter(
-        Q(sender=request.user, receiver=other_user) |
-        Q(sender=other_user,   receiver=request.user)
+        Q(sender=request.user, receiver=other_user)
+        | Q(sender=other_user, receiver=request.user)
     ).order_by('timestamp')
 
     data = [
         {
-            "id":        msg.id,
-            "sender":    msg.sender.username,
-            "text":      msg.text,
-            "time":      msg.timestamp.strftime("%H:%M"),
-            "is_mine":   (msg.sender_id == request.user.id),
+            "id": msg.id,
+            "sender": msg.sender.username,
+            "text": msg.text,
+            "time": msg.timestamp.strftime("%H:%M"),
+            "is_mine": (msg.sender_id == request.user.id),
             "is_edited": msg.is_edited,
         }
         for msg in msg_qs
@@ -298,15 +294,15 @@ def search_users(request):
     qs = User.objects.exclude(id=request.user.id)
     if query:
         qs = qs.filter(
-            Q(username__icontains=query) |
-            Q(first_name__icontains=query) |
-            Q(last_name__icontains=query)
+            Q(username__icontains=query)
+            | Q(first_name__icontains=query)
+            | Q(last_name__icontains=query)
         )
     qs = qs.values('id', 'username', 'first_name', 'last_name')[:30]
     result = [
         {
-            "id":        u['id'],
-            "username":  u['username'],
+            "id": u['id'],
+            "username": u['username'],
             "full_name": f"{u['first_name']} {u['last_name']}".strip() or u['username'],
         }
         for u in qs
@@ -329,16 +325,16 @@ def edit_message(request, message_id):
         if not new_text:
             return JsonResponse({"error": "Text cannot be empty"}, status=400)
 
-        msg.text      = new_text
+        msg.text = new_text
         msg.is_edited = True
         msg.save()
         logger.info(f"[MSG-EDIT] user {request.user.username} edited message id={message_id}")
 
         return JsonResponse({
             "status": "updated",
-            "id":     msg.id,
-            "text":   msg.text,
-            "time":   msg.timestamp.strftime("%H:%M"),
+            "id": msg.id,
+            "text": msg.text,
+            "time": msg.timestamp.strftime("%H:%M"),
         })
 
     return JsonResponse({"error": "POST required"}, status=405)
@@ -387,7 +383,10 @@ def export_chat(request, user_id):
     try:
         import openpyxl
     except ImportError:
-        return JsonResponse({"error": "openpyxl not installed. Run: pip install openpyxl"}, status=500)
+        return JsonResponse(
+            {"error": "openpyxl not installed. Run: pip install openpyxl"},
+            status=500,
+        )
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -397,8 +396,8 @@ def export_chat(request, user_id):
     ws.append(["Sender", "Receiver", "Message", "Time", "Edited", "Read"])
 
     msg_qs = Message.objects.filter(
-        Q(sender=request.user, receiver=other_user) |
-        Q(sender=other_user,   receiver=request.user)
+        Q(sender=request.user, receiver=other_user)
+        | Q(sender=other_user, receiver=request.user)
     ).order_by('timestamp')
 
     for msg in msg_qs:
@@ -408,7 +407,7 @@ def export_chat(request, user_id):
             msg.text,
             msg.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
             "Yes" if msg.is_edited else "No",
-            "Yes" if msg.is_read   else "No",
+            "Yes" if msg.is_read else "No",
         ])
 
     # Save to in-memory buffer
@@ -428,9 +427,9 @@ def export_chat(request, user_id):
     try:
         s3 = boto3.client(
             's3',
-            region_name            = django_settings.AWS_S3_REGION_NAME,
-            aws_access_key_id      = django_settings.AWS_ACCESS_KEY_ID      or None,
-            aws_secret_access_key  = django_settings.AWS_SECRET_ACCESS_KEY  or None,
+            region_name=django_settings.AWS_S3_REGION_NAME,
+            aws_access_key_id=django_settings.AWS_ACCESS_KEY_ID or None,
+            aws_secret_access_key=django_settings.AWS_SECRET_ACCESS_KEY or None,
             # On EC2: passing None causes boto3 to auto-use the IAM instance role
         )
 
@@ -438,7 +437,9 @@ def export_chat(request, user_id):
             buffer,
             django_settings.AWS_STORAGE_BUCKET_NAME,
             s3_key,
-            ExtraArgs={'ContentType': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}
+            ExtraArgs={
+                "ContentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            }
         )
 
         # Pre-signed URL valid for 5 minutes (300 seconds)
@@ -446,7 +447,7 @@ def export_chat(request, user_id):
             'get_object',
             Params={
                 'Bucket': django_settings.AWS_STORAGE_BUCKET_NAME,
-                'Key':    s3_key,
+                'Key': s3_key,
             },
             ExpiresIn=300
         )
@@ -461,13 +462,6 @@ def export_chat(request, user_id):
     except (BotoCoreError, ClientError) as e:
         logger.warning(f"[S3-EXPORT-FAIL] {request.user.username}: {str(e)}")
         return JsonResponse({"error": f"S3 error: {str(e)}"}, status=500)
-
-
-import json
-import boto3
-from django.http import HttpResponse
-from django.contrib.auth.decorators import login_required
-from .models import Message
 
 
 @login_required
@@ -491,6 +485,7 @@ def export_chats(request):
 
     # 🔹 Convert to JSON
         import json
+
         import boto3
 
         # 🔹 Convert to JSON
